@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Liveness Detection</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+        #videoElement { width: 500px; height: 400px; }
+        #output { margin-top: 20px; }
+        canvas { display: none; }
+    </style>
+</head>
+<body>
+
+<h1>Face Liveness Detection</h1>
+
+<!-- Video element for webcam stream -->
+<video id="videoElement" autoplay></video>
+<canvas id="canvas"></canvas>
+<div id="output"></div>
+
+<script>
+    const video = document.getElementById('videoElement');
+    const canvas = document.getElementById('canvas');
+    const output = document.getElementById('output');
+    const context = canvas.getContext('2d');
+
+    // Get access to the webcam
+    if (navigator.mediaDevices.getUserMedia) {
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (stream) {
+                video.srcObject = stream;
+            })
+            .catch(function (err) {
+                console.log("Something went wrong with accessing the webcam!");
+            });
+    }
+
+    // Function to capture a frame and send it to the backend
+    function captureFrameAndSend() {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        canvas.toBlob(async function (blob) {
+            const formData = new FormData();
+            formData.append('image', blob, 'frame.png');
+
+            const response = await fetch('/predict', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+            output.innerHTML = JSON.stringify(result, null, 2);
+
+            // Continue capturing frames
+            captureFrameAndSend();
+        }, 'image/png');
+    }
+
+    // Start capturing frames when the video is ready
+    video.addEventListener('play', function () {
+        captureFrameAndSend();
+    });
+</script>
+
+</body>
+</html>
